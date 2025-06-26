@@ -1,11 +1,13 @@
 package kr.hisec.hansei.myshieldon
 
+
+
 import android.os.Build
 import java.io.File
 import java.io.OutputStream
 import java.io.IOException
 
-object SecurityCheckUtils {
+object RootCheckUtils {
     /**
      * 루팅 여부를 확인하는 함수.
      * 여러 방법을 조합하여 판단합니다.
@@ -97,7 +99,7 @@ object SecurityCheckUtils {
 
     /**
      * 새로운 기법 2: /system과 같은 읽기 전용 경로에 쓰기 권한이 있는지 확인합니다.
-     * 쓰기 권한 존재 여부
+     * @return 쓰기 권한 존재 여부
      */
     private fun checkForRWPaths(): Boolean {
         val paths = arrayOf(
