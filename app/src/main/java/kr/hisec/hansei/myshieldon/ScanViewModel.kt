@@ -65,4 +65,7 @@ class ScanViewModel(private val application: Application) : AndroidViewModel(app
             }
         }
     }
+    fun returnToIdle() {
+        _uiState.value = ScanUiState.Idle
+    }
 }

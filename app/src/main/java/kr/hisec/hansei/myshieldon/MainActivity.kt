@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,13 +57,18 @@ fun ShieldOnRootScreen(viewModel: ScanViewModel) {
                 }
                 ScanUiState.Success::class, ScanUiState.Error::class -> {
                     val result = uiState
-                    ResultScreen(result = result)
+                    // [수정] ResultScreen에 viewModel의 초기화 함수를 넘겨줍니다.
+                    ResultScreen(
+                        result = result,
+                        onGoBack = { viewModel.returnToIdle() }
+                    )
                 }
             }
         }
     }
 }
 
+// ... IdleScreen, ScanningScreen 함수는 이전과 동일 ...
 @Composable
 fun IdleScreen(onStartClick: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -73,7 +77,6 @@ fun IdleScreen(onStartClick: () -> Unit) {
             modifier = Modifier.size(200.dp),
             shape = CircleShape,
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
-            // 버튼 색은 Theme.kt에서 지정한 primary 색상(ModernBlue)을 자동으로 따라갑니다.
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Shield, "보안 방패", modifier = Modifier.size(60.dp))
@@ -88,7 +91,6 @@ fun IdleScreen(onStartClick: () -> Unit) {
 fun ScanningScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // 진행률 표시 색상도 테마의 primary 색상을 자동으로 따라갑니다.
             CircularProgressIndicator(modifier = Modifier.size(100.dp))
             Spacer(modifier = Modifier.height(24.dp))
             Text("정밀 검사를 진행 중입니다...", style = MaterialTheme.typography.titleMedium)
@@ -96,8 +98,10 @@ fun ScanningScreen() {
     }
 }
 
+
+// [수정] ResultScreen이 onGoBack 이라는 함수를 받도록 변경합니다.
 @Composable
-fun ResultScreen(result: ScanUiState) {
+fun ResultScreen(result: ScanUiState, onGoBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -106,33 +110,48 @@ fun ResultScreen(result: ScanUiState) {
     ) {
         Spacer(modifier = Modifier.height(60.dp))
         Text("점검 완료", style = MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        when (result) {
-            is ScanUiState.Success -> {
-                if (result.detectedApps.isEmpty()) {
-                    // [수정] 직접 지정한 색 대신, Color.kt에 정의한 SuccessGreen을 사용합니다.
-                    Text("모든 앱이 안전합니다.", color = SuccessGreen, style = MaterialTheme.typography.titleMedium)
-                } else {
-                    // [수정] 직접 지정한 색 대신, Color.kt에 정의한 WarningRed를 사용합니다.
-                    Text("총 ${result.detectedApps.size}개의 보안 위협이 탐지되었습니다.", color = WarningRed, style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    LazyColumn {
-                        items(result.detectedApps) { app ->
-                            DetectedAppCard(app)
+        // LazyColumn이 화면의 남은 공간을 모두 차지하도록 weight(1f)를 줍니다.
+        Box(modifier = Modifier.weight(1f)) {
+            when (result) {
+                is ScanUiState.Success -> {
+                    if (result.detectedApps.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("모든 앱이 안전합니다.", color = SuccessGreen, style = MaterialTheme.typography.titleMedium)
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("총 ${result.detectedApps.size}개의 보안 위협이 탐지되었습니다.", color = WarningRed, style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            LazyColumn {
+                                items(result.detectedApps) { app ->
+                                    DetectedAppCard(app)
+                                }
+                            }
                         }
                     }
                 }
+                is ScanUiState.Error -> {
+                    Text("오류 발생: ${result.message}", color = WarningRed)
+                }
+                else -> {}
             }
-            is ScanUiState.Error -> {
-                // [수정] 직접 지정한 색 대신, Color.kt에 정의한 WarningRed를 사용합니다.
-                Text("오류 발생: ${result.message}", color = WarningRed)
-            }
-            else -> {}
+        }
+
+        // [추가] 화면 맨 아래에 '다시 점검하기' 버튼을 추가합니다.
+        Button(
+            onClick = onGoBack, // 버튼을 누르면 전달받은 onGoBack 함수를 실행
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            Text("다시 점검하기", fontSize = 18.sp)
         }
     }
 }
 
+// ... DetectedAppCard 함수는 이전과 동일 ...
 @Composable
 fun DetectedAppCard(app: DetectedApp) {
     Card(
@@ -147,11 +166,9 @@ fun DetectedAppCard(app: DetectedApp) {
             app.issues.forEach { issue ->
                 when (issue) {
                     is SecurityIssue.DangerousPermissions -> {
-                        // [수정] 직접 지정한 색 대신, Color.kt에 정의한 WarningRed를 사용합니다.
                         Text("  - 이슈: 과도한 위험 권한 보유 (${issue.permissions.size}개)", color = WarningRed)
                     }
                     is SecurityIssue.TamperedSignature -> {
-                        // [수정] 직접 지정한 색 대신, Color.kt에 정의한 WarningRed를 사용합니다.
                         Text("  - 이슈: ★★★ 서명 변조 의심 ★★★", color = WarningRed, fontWeight = FontWeight.Bold)
                     }
                 }
